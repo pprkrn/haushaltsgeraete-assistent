@@ -1,0 +1,23 @@
+Der Haushaltsgeräte-Assistent ist ein lokal laufendes, intelligentes Frage-Antwort-System, das Informationen aus PDF-Dokumenten – z. B. Bedienungsanleitungen – extrahiert und nutzerfreundlich bereitstellt. Es funktioniert vollständig offline, ist datenschutzfreundlich und lässt sich leicht an andere Dokumenttypen oder Branchen anpassen (z. B. technische Handbücher, Schulungsunterlagen, interne Richtlinien).
+
+💡 Funktionsweise (RAG)
+
+Das Tool basiert auf der RAG-Methode (Retrieval-Augmented Generation), einem hybriden Ansatz aus Informationssuche und Textgenerierung:
+	1.	Retrieval: PDF-Dokumente werden zunächst in kleinere Sinnabschnitte („Chunks“) zerlegt und in eine lokale Vektor-Datenbank (ChromaDB) eingebettet. Bei einer Nutzerfrage sucht das System die relevantesten Abschnitte heraus – unterstützt durch Synonyme und Ähnlichkeitssuche.
+	2.	Augmentation: Diese Fundstellen werden dem Sprachmodell (z. B. LLaMA 3, Mixtral) als Kontext übergeben.
+	3.	Generation: Das Sprachmodell erzeugt daraus eine natürliche, verständliche Antwort – stets basierend auf dem realen Dokument, nicht auf Fantasie.
+
+🔧 Technik-Überblick
+	•	Frontend: Minimalistisches Web-Interface für Fragen, Uploads & Feedback
+	•	Backend: Python, Flask, PyMuPDF, ChromaDB, Ollama
+	•	Sprachmodell: Lokales LLM (z. B. LLaMA 3, Mixtral) über Ollama eingebunden
+	•	Erweiterbar: Neue PDFs lassen sich einfach ergänzen oder entfernen; Feedback kann für Fine-Tuning genutzt werden
+
+🚀 Übertragbarkeit
+
+Das Konzept lässt sich universell einsetzen:
+	•	Wissensdatenbanken
+	•	Dokumentenanalyse
+	•	Leitlinien
+	•	Wikis
+	•	Handbücher

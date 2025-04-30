@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.log
+*.tmp
+*.sqlite3
+.env
+.venv/
+venv/
+ENV/
+env.bak/
+.idea/
+.vscode/
+
+# Flask / Cache / Session
+instance/
+*.db
+*.sqlite
+*.db-journal
+
+# ChromaDB persistent storage
+chromadb/
+*.chroma.db
+
+# Uploads & generierte Inhalte
+uploads/
+feedback/
+
+# PDFs / temporäre Inhalte
+*.pdf
+*.bak
+*.old
+*.swp
+*.swo
+*.tmp
+*.temp
+*.log
+*.tar.gz
+
+# MacOS / Windows spezifisch
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Jupyter falls mal was getestet wird
+.ipynb_checkpoints/
+
+# VSCode settings (optional)
+.vscode/settings.json
+
+# OCR-Ergebnisse
+ocr_output_*.pdf
