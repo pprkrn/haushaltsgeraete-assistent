@@ -7,6 +7,8 @@ import fitz  # PyMuPDF
 import json
 from datetime import datetime
 
+import onnxruntime as ort
+
 def clean_question(q):
     return q.strip().lower()
 
@@ -47,6 +49,20 @@ HTML_PAGE = """
             font-size: 16px;
             background-color: white;
         }
+        #question {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 60px;
+            max-height: 600px;
+            overflow-y: auto;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
         input[type="file"] {
             margin-top: 5px;
             font-size: 14px;
@@ -72,12 +88,16 @@ HTML_PAGE = """
             margin-bottom: 20px;
         }
         #response {
-            background: white;
-            padding: 20px;
+            margin-top: 20px;
+            width: 100%;
+            max-height: 600px;
+            height: auto;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: white;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
-            max-width: 800px;
         }
         ul {
             padding-left: 20px;
@@ -86,44 +106,104 @@ HTML_PAGE = """
             margin-top: 10px;
             font-weight: bold;
         }
+        /* Chat-Layout Styles */
+        .chat-container {
+            background: #f5f5f7;
+            padding: 20px;
+            max-width: 800px;
+            margin-top: 20px;
+            border-radius: 12px;
+        }
+        .chat-bubble {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            line-height: 1.5;
+            display: inline-block;
+            clear: both;
+        }
+        .chat-question {
+            background-color: #e0e0e0;
+            float: left;
+        }
+        .chat-answer {
+            background-color: #007aff;
+            color: white;
+            float: right;
+        }
+        .vertical-divider {
+            border-left: 1px solid #ccc;
+            height: 100%;
+            margin: 0 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Haushaltsgeräte Assistent</h1>
-    <form id="chat-form" onsubmit="return false;">
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="text" id="question" placeholder="Deine Frage..." style="flex: 1; max-width: 400px; padding: 10px;">
-            <button type="submit" style="padding: 10px 16px;">Fragen</button>
+    <p style="margin-top: -10px; font-size: 16px; color: #444;">
+      Dieses Tool beantwortet deine Fragen auf Basis der Inhalte deiner hochgeladenen Bedienungsanleitungen.
+    </p>
+    <div style="display: flex; gap: 0;">
+      <div style="flex: 2 1 66%; max-width: 100%; width: 100%;">
+        <div id="response" style="margin-top: 20px; display: none;">
+          <div id="chat-empty" style="color: #999; font-style: italic;">Chatverlauf leer</div>
         </div>
-        <br>
-        <label for="num-results">Anzahl der Fundstellen: <span id="slider-value">4</span></label><br>
-        <input type="range" id="num-results" name="num-results" min="1" max="10" value="4">
-        <br>
-        <label for="active-pdfs">PDFs, die bei der Antwort berücksichtigt werden:</label><br>
-        <div id="active-pdfs-container" style="max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: 12px; min-width: 300px; width: fit-content; max-width: 100%; white-space: nowrap;"></div>
-    </form>
-    <div id="response" style="margin-top: 20px;"></div>
-
-    <hr style="margin: 40px 0;">
-
-    <h2>Neue PDF-Anleitung hochladen</h2>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="pdf_file" accept=".pdf" required>
-        <button type="submit">Hochladen & Integrieren</button>
-    </form>
-
-    <div id="upload-status" style="margin-top: 20px; color: green;"></div>
-    <div id="pdf-list" style="margin-top: 20px;">
-        <h3>Hochgeladene Anleitungen:</h3>
-        <ul id="pdf-files"></ul>
-        <h3>PDF-Anleitung löschen</h3>
-        <form id="delete-form">
-            <select id="delete-select"></select>
-            <button type="submit">Löschen</button>
+        <form id="chat-form" onsubmit="return false;">
+            <div id="question-container" style="width: 100%;">
+                <textarea id="question" placeholder="Deine Frage..." rows="2"></textarea><br>
+                <button type="submit" style="margin-top: 10px; display: block;">Fragen</button>
+            </div>
         </form>
-        <div id="delete-status" style="margin-top: 10px; color: red;"></div>
+      </div>
+      <div class="vertical-divider"></div>
+      <div style="flex: 1 1 33%; max-width: none;" id="settings-panel">
+        <!-- Der gesamte Inhalt bleibt unverändert -->
+        <form style="margin-bottom: 0;" onsubmit="return false;">
+          <label for="num-results" style="font-size: 16px; font-weight: bold;">Wie viele passende Stellen aus den Anleitungen sollen berücksichtigt werden? <span id="slider-value">4</span></label><br>
+          <input type="range" id="num-results" name="num-results" min="1" max="10" value="4">
+          <br>
+          <label for="active-pdfs" style="font-size: 16px;"><b>PDFs, die bei der Antwort berücksichtigt werden:</b></label><br>
+          <div id="active-pdfs-container" style="max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: 12px; min-width: 300px; width: fit-content; max-width: 100%; white-space: nowrap;"></div>
+          <br>
+          <label for="model-select" style="font-size: 16px;"><b>LLM-Modell wählen:</b></label><br>
+          <select id="model-select" name="model">
+            <option value="gemma3:12b">gemma3:12b</option>
+            <option value="llama3.1:8b">llama3.1:8b</option>
+            <option value="llama3.3:70b">llama3.3:70b</option>
+            <option value="mistral">mistral</option>
+            <option value="mixtral:8x7b" selected>mixtral:8x7b</option>
+            <option value="phi">phi</option>
+          </select>
+        </form>
+        <div id="model-download-hint" style="display: none; margin-top: 10px; color: orange; font-weight: bold;">
+            ⬇️ Das Modell wird gerade heruntergeladen – bitte habe einen Moment Geduld...
+        </div>
+        <label for="pdf_file" style="font-size: 16px; font-weight: bold;">PDF-Anleitung hochladen:</label>
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <input type="file" name="pdf_file" accept=".pdf" required>
+            <button type="submit">Hochladen & Integrieren</button>
+        </form>
+        <div id="upload-status" style="margin-top: 20px; color: green;"></div>
+        <div id="pdf-list" style="margin-top: 20px;">
+            <label for="delete-select" style="font-size: 16px; font-weight: bold;">PDF-Anleitung löschen:</label>
+            <form id="delete-form">
+                <select id="delete-select"></select>
+                <button type="submit">Löschen</button>
+            </form>
+            <div id="delete-status" style="margin-top: 10px; color: red;"></div>
+        </div>
+        <div id="sources-info" style="margin-top: 20px;"></div>
+      </div>
     </div>
     <script>
+        // Trigger form submission on Enter (except Shift+Enter) in textarea
+        document.getElementById('question').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        });
         async function loadUploadedPDFs() {
             const res = await fetch('/list-pdfs');
             const data = await res.json();
@@ -158,13 +238,20 @@ HTML_PAGE = """
                 const label = document.createElement('label');
                 label.style.display = "block";
                 label.style.whiteSpace = "nowrap";
+
                 const checkbox = document.createElement('input');
                 checkbox.type = "checkbox";
                 checkbox.name = "active-pdfs";
                 checkbox.value = f;
                 checkbox.checked = true;
+
+                const link = document.createElement('a');
+                link.href = `/uploads/${encodeURIComponent(f)}`;
+                link.textContent = " " + f;
+                link.target = "_blank";
+
                 label.appendChild(checkbox);
-                label.appendChild(document.createTextNode(" " + f));
+                label.appendChild(link);
                 container.appendChild(label);
             });
         }
@@ -181,23 +268,36 @@ HTML_PAGE = """
             });
             const result = await response.text();
             statusDiv.textContent = result;
-            await loadUploadedPDFs();
             await updateDeleteSelect();
             await updateActiveSelect();
         });
 
         document.getElementById('chat-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            document.getElementById('model-download-hint').style.display = "none";
             const questionInput = document.getElementById('question');
             const rawQuestion = questionInput.value;
             const responseDiv = document.getElementById('response');
+            responseDiv.style.display = "block";
+            const emptyNotice = document.getElementById('chat-empty');
+            if (emptyNotice) {
+                emptyNotice.remove();
+            }
             if (!rawQuestion.trim()) {
                 responseDiv.textContent = "Bitte gib eine Frage ein.";
                 return;
             }
-            responseDiv.textContent = "⏳ Einen Moment, ich denke nach...";
+            // Entfernt: Frage-Bubble wird erst mit der Antwort hinzugefügt
+            const loadingBubble = document.createElement('div');
+            loadingBubble.className = 'chat-container';
+            loadingBubble.innerHTML = `<div class="chat-bubble chat-answer">⏳ Einen Moment, ich denke nach...</div>`;
+            responseDiv.appendChild(loadingBubble);
+            // Leere das Eingabefeld nach Absenden der Frage
+            document.getElementById('question').value = "";
+
             const numResults = document.getElementById('num-results').value;
             const selectedPDFs = Array.from(document.querySelectorAll('input[name="active-pdfs"]:checked')).map(cb => cb.value);
+            const selectedModel = document.getElementById('model-select').value;
             const res = await fetch('/ask', {
                 method: 'POST',
                 headers: {
@@ -206,33 +306,47 @@ HTML_PAGE = """
                 body: JSON.stringify({
                     question: rawQuestion,
                     num_results: parseInt(numResults),
-                    active_pdfs: selectedPDFs
+                    active_pdfs: selectedPDFs,
+                    model: selectedModel
                 })
             });
             const data = await res.json();
+            if (data.answer && data.answer.includes("Modell wird heruntergeladen")) {
+                document.getElementById('model-download-hint').style.display = "block";
+            }
             const question = rawQuestion.trim();
-            document.getElementById('question').value = question;
-            let sourceHTML = "";
+            // Quellen (Fundstellen) im rechten Einstellungsbereich anzeigen
+            const sourcesDiv = document.getElementById("sources-info");
             if (data.sources && data.sources.length > 0) {
-                sourceHTML = "<br><br><b>Fundstellen (sortiert nach Relevanz):</b><ul>";
+                let html = "<b>Fundstellen (sortiert nach Relevanz):</b><ul>";
                 for (let [id, text] of data.sources) {
-                    sourceHTML += `<li><b>${id}</b>: ${text}</li>`;
+                    html += `<li><b>${id}</b>: ${text}</li>`;
                 }
-                sourceHTML += "</ul>";
+                html += "</ul>";
+                sourcesDiv.innerHTML = html;
+            } else {
+                sourcesDiv.innerHTML = "";
             }
 
-            let resultHTML = "<b>Antwort:</b><br>" + data.answer;
-            resultHTML += `
-                <br><br><b>War die Antwort hilfreich?</b><br>
-                <button id="feedback-yes">👍 Ja</button>
-                <button id="feedback-no">👎 Nein</button>
-                <div id="feedback-form" style="display:none; margin-top:10px;">
-                    <textarea id="correct-answer" rows="4" style="width:100%;" placeholder="Wie hätte die Antwort lauten sollen?"></textarea><br>
-                    <button id="submit-feedback">Feedback absenden</button>
+            let resultHTML = `
+              <div class="chat-container">
+                <div class="chat-bubble chat-question">${question}</div>
+                <div class="chat-bubble chat-answer">
+                  ${data.answer}
+                  <div style="margin-top: 10px;">
+                    <b>War die Antwort hilfreich?</b><br>
+                    <button id="feedback-yes">👍 Ja</button>
+                    <button id="feedback-no">👎 Nein</button>
+                    <div id="feedback-form" style="display:none; margin-top:10px;">
+                        <textarea id="correct-answer" rows="4" style="width:100%;" placeholder="Wie hätte die Antwort lauten sollen?"></textarea><br>
+                        <button id="submit-feedback">Feedback absenden</button>
+                    </div>
+                  </div>
                 </div>
+              </div>
             `;
-            resultHTML += sourceHTML;
-            responseDiv.innerHTML = resultHTML;
+            responseDiv.removeChild(loadingBubble);
+            responseDiv.innerHTML += resultHTML;
 
             document.getElementById('feedback-yes').addEventListener('click', async () => {
                 await fetch('/feedback', {
@@ -266,6 +380,7 @@ HTML_PAGE = """
                 alert("Danke für deine Korrektur!");
                 document.getElementById('feedback-form').style.display = 'none';
             });
+            responseDiv.scrollTop = responseDiv.scrollHeight;
         });
 
         document.getElementById('num-results').addEventListener('input', function(e) {
@@ -288,7 +403,6 @@ HTML_PAGE = """
         });
 
         window.addEventListener("load", () => {
-            loadUploadedPDFs();
             updateDeleteSelect();
             updateActiveSelect();
         });
@@ -360,6 +474,8 @@ Du bist ein smarter Haushaltsgeräte-Assistent.
 Beantworte die folgende Nutzerfrage basierend ausschließlich auf den unten angegebenen Auszügen (Kontext) aus Bedienungsanleitungen.
 
 **Wichtig:**
+- Verwende ausschließlich Informationen aus dem bereitgestellten Kontext.
+- Beziehe dich explizit auf Fundstellen durch Zitieren der zugehörigen Dokument-ID (z. B. `[Quelle: Siemens Backofen.pdf_chunk_2]`).
 - Gib eine vollständige, direkte Antwort.
 - Formuliere eigenständig und verständlich.
 - Füge keine erfundenen Informationen hinzu.
@@ -374,7 +490,8 @@ Frage: {question}
 Antwort:
 """
 
-    MODEL_NAME = "mixtral:8x7b"
+    model_name = data.get("model", "mixtral:8x7b")
+    MODEL_NAME = model_name
 
     try:
         response = ollama.generate(
@@ -384,11 +501,10 @@ Antwort:
     except ollama.ResponseError as e:
         if "not found" in str(e).lower():
             print(f"📦 Modell '{MODEL_NAME}' nicht gefunden. Versuche Download...")
-            ollama.pull(MODEL_NAME)
-            response = ollama.generate(
-                model=MODEL_NAME,
-                prompt=prompt
-            )
+            return jsonify({
+                "answer": "Modell wird heruntergeladen – bitte versuche es gleich erneut.",
+                "sources": []
+            })
         else:
             raise
 
@@ -435,7 +551,38 @@ def detect_pdf_style(text):
     else:
         return "fliesstext"
 
+
+# Hilfsfunktion: Abschnittserkennung anhand typischer Überschriften/Nummerierungen
+def split_by_structure(text):
+    # Erkenne typische Abschnittsüberschriften oder Nummerierungen
+    pattern = r"(?=^\s*(\d+(\.\d+)*|[A-ZÄÖÜ][^\n]{0,60}):?\s*$)"
+    lines = text.splitlines()
+    chunks = []
+    current_chunk = []
+    for line in lines:
+        if re.match(pattern, line.strip(), re.MULTILINE):
+            if current_chunk:
+                chunks.append("\n".join(current_chunk).strip())
+                current_chunk = []
+        current_chunk.append(line)
+    if current_chunk:
+        chunks.append("\n".join(current_chunk).strip())
+    return [c for c in chunks if len(c.strip()) > 50]
+
 def adaptive_chunk(text, style, max_chars=1000):
+    structured_chunks = split_by_structure(text)
+    if structured_chunks and len(structured_chunks) > 3:
+        chunks, current = [], ""
+        for p in structured_chunks:
+            if len(current) + len(p) < max_chars:
+                current += p.strip() + "\n"
+            else:
+                chunks.append(current.strip())
+                current = p.strip() + "\n"
+        if current.strip():
+            chunks.append(current.strip())
+        return chunks
+    # Fallback
     if style == "fliesstext":
         paragraphs = text.split("\n\n")
     elif style == "stichpunktartig":
@@ -547,6 +694,13 @@ def show_chunks(pdf_id):
         html += f"<b>{id_}</b><br><pre>{doc}</pre><hr>"
     return html
 
+# Datei-Downloads aus uploads-Ordner ermöglichen
+from flask import send_from_directory
+
+@app.route('/uploads/<path:filename>')
+def download_file(filename):
+    return send_from_directory(os.path.abspath("uploads"), filename)
+
 # App starten
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5050, debug=True)
