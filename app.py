@@ -15,7 +15,8 @@ app = Flask(__name__)
 
 # ChromaDB Verbindung
 client = PersistentClient(path="./chromadb")
-collection = client.get_collection(name="bedienungsanleitungen")
+collection = client.get_or_create_collection(name="bedienungsanleitungen")
+
 
 # Minimal-HTML für den Browser-Chat mit Upload-Formular
 HTML_PAGE = """
@@ -373,15 +374,29 @@ Frage: {question}
 Antwort:
 """
 
-    response = ollama.generate(
-        model="mixtral:8x7b",
-        prompt=prompt
-    )
+    MODEL_NAME = "mixtral:8x7b"
+
+    try:
+        response = ollama.generate(
+            model=MODEL_NAME,
+            prompt=prompt
+        )
+    except ollama.ResponseError as e:
+        if "not found" in str(e).lower():
+            print(f"📦 Modell '{MODEL_NAME}' nicht gefunden. Versuche Download...")
+            ollama.pull(MODEL_NAME)
+            response = ollama.generate(
+                model=MODEL_NAME,
+                prompt=prompt
+            )
+        else:
+            raise
 
     return jsonify({
         "answer": response['response'],
         "sources": list(zip(ids, chunks))
     })
+
 
 import tempfile
 import subprocess
@@ -394,9 +409,9 @@ def read_pdf(path):
     print(f"🔍 Starte OCR für: {path}")
     try:
         subprocess.run(
-            ["ocrmypdf", "--force-ocr", "--deskew", "--rotate-pages", path, ocr_path],
-            check=True
-        )
+            ["python", "-m", "ocrmypdf", "--force-ocr", "--deskew", "--rotate-pages", path, ocr_path],
+    check=True
+)   
     except subprocess.CalledProcessError as e:
         print(f"❌ OCR fehlgeschlagen: {e}")
         return ""
