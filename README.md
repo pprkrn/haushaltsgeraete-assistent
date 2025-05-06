@@ -1,4 +1,3 @@
-
 # 🧠 Haushaltsgeräte Assistent
 **Version 0.3**
 
@@ -113,13 +112,15 @@ http://localhost:5050
 
 ## 🧠 Modellwahl
 
-| Modell | Qualität | RAM/VRAM |
-|--------|----------|----------|
+| Modell | Qualität | RAM/VRAM / Hinweis |
+|--------|----------|--------------------|
 | `mixtral:8x7b` | ⭐⭐⭐⭐ | ca. 40 GB |
 | `llama3:70b-instruct-q4_K_M` | ⭐⭐⭐⭐⭐ | ab 48 GB |
 | `deepseek:chat` | ⭐⭐⭐⭐ | gute DE-Unterstützung |
+| `gpt-4-turbo` | ⭐⭐⭐⭐⭐ | online, kostenpflichtig – erfordert `OPENAI_API_KEY` in `.env` |
+| `gpt-4o` | ⭐⭐⭐ | online, kostenpflichtig – erfordert `OPENAI_API_KEY` in `.env` |
 
----
+*Hinweis:* GPT-Modelle (z.B. `gpt-4-turbo`, `gpt-4o`) können genutzt werden, wenn in einer `.env`-Datei ein gültiger `OPENAI_API_KEY` gesetzt ist.
 
 ## 🗑️ Löschung & Feedback
 
