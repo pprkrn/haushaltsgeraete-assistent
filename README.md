@@ -1,5 +1,6 @@
 
 # 🧠 Haushaltsgeräte Assistent
+**Version 0.3**
 
 Ein lokal laufender Chatbot zur Analyse und Beantwortung von Fragen aus PDF-Bedienungsanleitungen für deine Haushaltsgeräte.  
 Er nutzt `Flask`, `Ollama`, `ChromaDB` und ein lokal laufendes LLM (z. B. Mixtral oder LLaMA 3).  
@@ -9,9 +10,7 @@ Alle Daten bleiben **komplett offline auf deinem Gerät**. 🚀
 
 ---
 
-## 🔧 Funktionen
-
-- Upload von beliebig vielen PDF-Bedienungsanleitungen
+- Upload von beliebig vielen PDF- und DOCX-Bedienungsanleitungen
 - Verarbeitung inkl. OCR bei Bedarf
 - Intelligente Chunking-Strategie basierend auf Texttyp
 - Volltextsuche mit Synonym-Fallback
@@ -87,13 +86,13 @@ ollama pull llama3:70b-instruct-q4_K_M
 ## ▶️ Starten der App
 
 ```bash
-python app.py
+python app_0.3.py
 ```
 
 Dann öffne im Browser:
 
 ```
-http://localhost:5000
+http://localhost:5050
 ```
 
 ---
