@@ -126,9 +126,3 @@ http://localhost:5050
 - Hochgeladene PDFs können einzeln gelöscht werden
 - Chunks werden automatisch aus ChromaDB entfernt
 - Feedback mit richtiger Antwort wird gespeichert (für Nachtraining geeignet)
-
----
-
-## 🤝 Lizenz
-
-Private Nutzung erlaubt. Kein kommerzieller Support.
