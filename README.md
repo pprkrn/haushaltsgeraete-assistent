@@ -1,8 +1,8 @@
 # 🧠 Haushaltsgeräte Assistent
 **Version 0.3**
 
-Ein lokal laufender Chatbot zur Analyse und Beantwortung von Fragen aus PDF-Bedienungsanleitungen für deine Haushaltsgeräte.  
-Er nutzt `Flask`, `Ollama`, `ChromaDB` und ein lokal laufendes LLM (z. B. Mixtral oder LLaMA 3).  
+Ein lokal laufender Chatbot zur Analyse und Beantwortung von Fragen aus PDF-Bedienungsanleitungen für deine Haushaltsgeräte.
+Er nutzt `Flask`, `ChromaDB` und ein lokal laufendes LLM (z. B. Mixtral oder LLaMA 3) oder optional OpenAI GPT-Modelle (online), wenn ein `OPENAI_API_KEY` in `.env` gesetzt ist.
 Alle Daten bleiben **komplett offline auf deinem Gerät**. 🚀
 
 ![Banner](haushaltsgeraete_assistent_banner.png)
@@ -70,7 +70,7 @@ pip install -r requirements.txt
 
 ---
 
-## ⚙️ 4. Modell (Ollama)
+## ⚙️ 4. Modelle (Ollama & GPT)
 
 Installiere [Ollama](https://ollama.com/) und lade ein Modell wie:
 
@@ -79,6 +79,8 @@ ollama pull mixtral:8x7b
 # oder
 ollama pull llama3:70b-instruct-q4_K_M
 ```
+
+*Alternativ können GPT-Modelle (z. B. `gpt-4-turbo`) über OpenAI genutzt werden – setze dafür einen gültigen `OPENAI_API_KEY` in einer `.env`-Datei und installiere `python-dotenv`.*
 
 ---
 
